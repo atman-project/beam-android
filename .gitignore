@@ -1,0 +1,20 @@
+*.iml
+.gradle
+/local.properties
+/.idea/
+.kotlin/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+app/build/
+app/release/
+# Built atman artifacts copied in by ./build_atman.sh
+app/src/main/jniLibs/
+# Hand-written wrappers in uniffi/atman/ stay tracked; only the
+# generated atman.kt is ignored.
+app/src/main/java/uniffi/atman/atman.kt
+# Submodule build outputs
+submodules/atman/target/

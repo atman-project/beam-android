@@ -1,0 +1,54 @@
+name: Android
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      # `cargo ndk` picks up ANDROID_NDK_HOME; the runner ships the NDK
+      # under $ANDROID_HOME/ndk/<version> but doesn't export the path.
+      - name: Resolve ANDROID_NDK_HOME
+        run: |
+          ndk_dir=$(ls -d $ANDROID_HOME/ndk/*/ | sort -V | tail -1)
+          echo "ANDROID_NDK_HOME=${ndk_dir%/}" >> $GITHUB_ENV
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-ndk
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: submodules/atman -> target
+
+      - name: Build atman
+        run: ./build_atman.sh
+
+      - name: Build APK
+        run: ./gradlew assembleDebug
