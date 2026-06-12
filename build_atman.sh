@@ -24,8 +24,10 @@ fi
 JNI_DIR="$ANDROID_DIR/app/src/main/jniLibs"
 KOTLIN_DIR="$ANDROID_DIR/app/src/main/java/uniffi/atman"
 
-# Wipe + remake so stale .so / .kt files from earlier builds don't linger.
-rm -rf "$JNI_DIR" "$KOTLIN_DIR"
+# Wipe stale artifacts. Only remove `atman.kt` from KOTLIN_DIR — the
+# hand-written `AtmanClientFactory.kt` is tracked and lives alongside.
+rm -rf "$JNI_DIR"
+rm -f "$KOTLIN_DIR/atman.kt"
 mkdir -p "$JNI_DIR/arm64-v8a" "$JNI_DIR/armeabi-v7a" "$JNI_DIR/x86_64" "$KOTLIN_DIR"
 
 cp "$ATMAN_DIR/target/aarch64-linux-android/$MODE/libatman.so"     "$JNI_DIR/arm64-v8a/libatman.so"
