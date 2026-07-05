@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  android:
+    name: Android release AAB
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      # `cargo ndk` picks up ANDROID_NDK_HOME; the runner ships the NDK
+      # under $ANDROID_HOME/ndk/<version> but doesn't export the path.
+      - name: Resolve ANDROID_NDK_HOME
+        run: |
+          ndk_dir=$(ls -d $ANDROID_HOME/ndk/*/ | sort -V | tail -1)
+          echo "ANDROID_NDK_HOME=${ndk_dir%/}" >> $GITHUB_ENV
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-ndk
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: submodules/atman -> target
+
+      - name: Build atman (release)
+        run: ./build_atman.sh --release
+
+      # The keystore is stored as a base64-encoded secret; decode it back
+      # to a real .jks that gradle can point at.
+      - name: Decode release keystore
+        run: |
+          echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.jks"
+
+      # `ORG_GRADLE_PROJECT_<name>` env vars are consumed by gradle exactly
+      # like `-P<name>=...` on the command line, which is what
+      # signingConfigs.release in app/build.gradle.kts reads.
+      - name: Build signed AAB
+        env:
+          ORG_GRADLE_PROJECT_BEAM_KEYSTORE_PATH: ${{ runner.temp }}/release.jks
+          ORG_GRADLE_PROJECT_BEAM_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          ORG_GRADLE_PROJECT_BEAM_KEY_ALIAS: beam
+          ORG_GRADLE_PROJECT_BEAM_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: ./gradlew bundleRelease
+
+      - name: Rename AAB with tag
+        run: |
+          mv app/build/outputs/bundle/release/app-release.aab \
+             "$RUNNER_TEMP/beam-${{ github.ref_name }}.aab"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ runner.temp }}/beam-${{ github.ref_name }}.aab
+          draft: true
+          prerelease: false
+          name: "Beam ${{ github.ref_name }}"
