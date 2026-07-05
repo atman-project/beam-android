@@ -6,6 +6,8 @@ import android.provider.OpenableColumns
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import uniffi.atman.AtmanClient
+import uniffi.atman.DownloadProgress
+import uniffi.atman.DownloadProgressListener
 import uniffi.atman.createAtmanClient
 import java.io.File
 import java.security.SecureRandom
@@ -44,8 +46,10 @@ object Atman {
 
     suspend fun downloadFiles(ticket: String, stagingDir: File): List<File> {
         stagingDir.mkdirs()
+        // TODO: bubble progress up to the UI (e.g. accept a listener param
+        // and pipe events into a receive-screen progress bar).
         return requireClient()
-            .downloadFiles(ticket, stagingDir.absolutePath)
+            .downloadFiles(ticket, stagingDir.absolutePath, NoOpProgressListener)
             .map(::File)
     }
 
@@ -72,4 +76,12 @@ object Atman {
         val bytes = ByteArray(32).also { SecureRandom().nextBytes(it) }
         return bytes.joinToString("") { "%02x".format(it) }
     }
+}
+
+/**
+ * Placeholder listener passed to `downloadFiles` until progress is wired to
+ * the UI. See the TODO in `Atman.downloadFiles`.
+ */
+private object NoOpProgressListener : DownloadProgressListener {
+    override fun onProgress(progress: DownloadProgress) {}
 }
