@@ -33,6 +33,8 @@ Open the project in Android Studio and run on a connected device, or install fro
 
 ## Release build
 
+**NOTE: All of the following steps are automated in `.github/workflows/release.yml`.**
+
 Create `~/.gradle/gradle.properties` with your keystore credentials:
 ```sh
 BEAM_KEYSTORE_PATH=<base_dir>/beam-release.jks
