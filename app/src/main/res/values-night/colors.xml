@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="beam_primary">#B0C6FF</color>
+    <color name="beam_on_primary">#002E69</color>
+    <color name="beam_primary_container">#004494</color>
+    <color name="beam_on_primary_container">#D8E2FF</color>
+</resources>

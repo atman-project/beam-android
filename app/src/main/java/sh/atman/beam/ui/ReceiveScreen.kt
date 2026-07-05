@@ -37,7 +37,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import android.text.format.Formatter
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import sh.atman.beam.Atman
@@ -52,6 +55,9 @@ fun ReceiveScreen() {
     var manualTicket by remember { mutableStateOf("") }
     var scanning by remember { mutableStateOf(false) }
     var working by remember { mutableStateOf(false) }
+    var bytesReceived by remember { mutableStateOf(0L) }
+    var transferStart by remember { mutableStateOf(0L) }
+    var receiveJob by remember { mutableStateOf<Job?>(null) }
     var result by remember { mutableStateOf<SaveOutcome?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
@@ -60,12 +66,17 @@ fun ReceiveScreen() {
         if (trimmed.isEmpty()) return
         errorMessage = null
         result = null
+        bytesReceived = 0
+        transferStart = System.currentTimeMillis()
         working = true
-        scope.launch {
+        receiveJob = scope.launch {
             try {
                 val outcome = withContext(Dispatchers.IO) {
                     val staging = File(context.cacheDir, "beam-staging").apply { mkdirs() }
-                    val staged = Atman.downloadFiles(trimmed, staging)
+                    val staged = Atman.downloadFiles(trimmed, staging) { bytes ->
+                        // Callback runs on a tokio thread; hop to Main.
+                        scope.launch { bytesReceived = bytes }
+                    }
                     Saver.save(context, staged)
                 }
                 if (outcome.photos == 0 && outcome.files == 0 && outcome.errors.isNotEmpty()) {
@@ -77,6 +88,8 @@ fun ReceiveScreen() {
                     }
                     manualTicket = ""
                 }
+            } catch (_: CancellationException) {
+                // User cancelled — leave UI clean.
             } catch (t: Throwable) {
                 errorMessage = t.localizedMessage ?: t.toString()
             } finally {
@@ -124,21 +137,6 @@ fun ReceiveScreen() {
             }
         }
 
-        if (working) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                CircularProgressIndicator()
-                Text(
-                    "Receiving…",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-
         val msg = errorMessage
         if (msg != null) {
             Text(
@@ -156,6 +154,14 @@ fun ReceiveScreen() {
                 receive(scanned)
             },
             onClose = { scanning = false },
+        )
+    }
+
+    if (working) {
+        TransferDialog(
+            bytesReceived = bytesReceived,
+            transferStart = transferStart,
+            onCancel = { receiveJob?.cancel() },
         )
     }
 
@@ -178,6 +184,50 @@ fun ReceiveScreen() {
             },
         )
     }
+}
+
+@Composable
+private fun TransferDialog(
+    bytesReceived: Long,
+    transferStart: Long,
+    onCancel: () -> Unit,
+) {
+    val context = LocalContext.current
+    val label = remember(bytesReceived, transferStart) {
+        val bytes = Formatter.formatShortFileSize(context, bytesReceived)
+        val elapsed = System.currentTimeMillis() - transferStart
+        if (bytesReceived == 0L || elapsed < 500) {
+            bytes
+        } else {
+            val rate = Formatter.formatShortFileSize(context, bytesReceived * 1000 / elapsed)
+            "$bytes ($rate/s)"
+        }
+    }
+    AlertDialog(
+        onDismissRequest = {},
+        title = null,
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                CircularProgressIndicator()
+                Text(
+                    "Receiving",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    label,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onCancel) { Text("Cancel") }
+        },
+    )
 }
 
 private fun resultTitle(o: SaveOutcome, asPhotos: Boolean): String {
