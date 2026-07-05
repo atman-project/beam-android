@@ -16,6 +16,18 @@ android {
         versionName = "0.1.0"
     }
 
+    signingConfigs {
+        create("release") {
+            val storePath = providers.gradleProperty("BEAM_KEYSTORE_PATH").orNull
+            if (storePath != null) {
+                storeFile = file(storePath)
+                storePassword = providers.gradleProperty("BEAM_KEYSTORE_PASSWORD").get()
+                keyAlias = providers.gradleProperty("BEAM_KEY_ALIAS").get()
+                keyPassword = providers.gradleProperty("BEAM_KEY_PASSWORD").get()
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -23,6 +35,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 

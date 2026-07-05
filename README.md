@@ -33,8 +33,28 @@ Open the project in Android Studio and run on a connected device, or install fro
 
 ## Release build
 
+Create `~/.gradle/gradle.properties` with your keystore credentials:
 ```sh
-./gradlew bundleRelease           # → app/build/outputs/bundle/release/app-release.aab
+BEAM_KEYSTORE_PATH=<base_dir>/beam-release.jks
+BEAM_KEYSTORE_PASSWORD=<the keystore password you set>
+BEAM_KEY_ALIAS=beam
+BEAM_KEY_PASSWORD=<same as keystore password (you said "same" earlier)>
 ```
 
-Sign with a release keystore before uploading to Play Console.
+Build `atman` in release mode:
+```sh
+./build_atman.sh --release   # release, all three ABIs
+```
+
+Then, build the AAB:
+```sh
+./gradlew bundleRelease      # → app/build/outputs/bundle/release/app-release.aab
+```
+
+You'll see the signed bundle at `app/build/outputs/bundle/release/app-release.aab`. That's what you upload to Play Console.
+
+Verify it's signed:
+```sh
+jarsigner -verify -verbose -certs app/build/outputs/bundle/release/app-release.aab
+```
+Should say `jar verified` and show your `CN` cert.
