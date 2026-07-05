@@ -44,12 +44,20 @@ object Atman {
     suspend fun transferCount(ticket: String): Long =
         requireClient().transferCount(ticket).toLong()
 
-    suspend fun downloadFiles(ticket: String, stagingDir: File): List<File> {
+    /**
+     * `onProgress` fires with the cumulative bytes received so far. The
+     * callback runs on the tokio thread that produced the event; consumers
+     * that touch UI state must hop to the main dispatcher themselves.
+     */
+    suspend fun downloadFiles(
+        ticket: String,
+        stagingDir: File,
+        onProgress: (Long) -> Unit = {},
+    ): List<File> {
         stagingDir.mkdirs()
-        // TODO: bubble progress up to the UI (e.g. accept a listener param
-        // and pipe events into a receive-screen progress bar).
+        val listener = ProgressCallbackListener(onProgress)
         return requireClient()
-            .downloadFiles(ticket, stagingDir.absolutePath, NoOpProgressListener)
+            .downloadFiles(ticket, stagingDir.absolutePath, listener)
             .map(::File)
     }
 
@@ -79,9 +87,17 @@ object Atman {
 }
 
 /**
- * Placeholder listener passed to `downloadFiles` until progress is wired to
- * the UI. See the TODO in `Atman.downloadFiles`.
+ * Bridges the UniFFI `DownloadProgressListener` foreign trait to a plain
+ * callback. Only `Bytes` events are forwarded — terminal events aren't
+ * needed for the UI since the awaited `downloadFiles` call resolves on
+ * completion.
  */
-private object NoOpProgressListener : DownloadProgressListener {
-    override fun onProgress(progress: DownloadProgress) {}
+private class ProgressCallbackListener(
+    private val onBytes: (Long) -> Unit,
+) : DownloadProgressListener {
+    override fun onProgress(progress: DownloadProgress) {
+        if (progress is DownloadProgress.Bytes) {
+            onBytes(progress.downloaded.toLong())
+        }
+    }
 }

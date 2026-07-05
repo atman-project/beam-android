@@ -1,31 +1,37 @@
 package sh.atman.beam.ui.theme
 
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
-
-private val DarkColors = darkColorScheme()
-private val LightColors = lightColorScheme()
+import androidx.compose.ui.res.colorResource
+import sh.atman.beam.R
 
 @Composable
 fun BeamTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
-    // Material You dynamic colors on Android 12+, fixed scheme otherwise.
-    val colors = when {
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val ctx = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)
-        }
-        darkTheme -> DarkColors
-        else -> LightColors
+    val primary = colorResource(R.color.beam_primary)
+    val onPrimary = colorResource(R.color.beam_on_primary)
+    val primaryContainer = colorResource(R.color.beam_primary_container)
+    val onPrimaryContainer = colorResource(R.color.beam_on_primary_container)
+
+    val colors = if (darkTheme) {
+        darkColorScheme(
+            primary = primary,
+            onPrimary = onPrimary,
+            primaryContainer = primaryContainer,
+            onPrimaryContainer = onPrimaryContainer,
+        )
+    } else {
+        lightColorScheme(
+            primary = primary,
+            onPrimary = onPrimary,
+            primaryContainer = primaryContainer,
+            onPrimaryContainer = onPrimaryContainer,
+        )
     }
     MaterialTheme(colorScheme = colors, content = content)
 }
