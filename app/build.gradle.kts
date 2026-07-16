@@ -12,8 +12,16 @@ android {
         applicationId = "sh.atman.beam"
         minSdk = 24
         targetSdk = 35
-        versionCode = 3
+        versionCode = 4
         versionName = "0.1.0"
+
+        // libatman.so is only built for these three (see build_atman.sh), but
+        // the JNA aar drops a libjnidispatch.so into every ABI it knows about
+        // (armeabi, mips, mips64, x86, ...). Without a filter those extra ABI
+        // splits ship JNA with no libatman.so behind it.
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        }
     }
 
     signingConfigs {
