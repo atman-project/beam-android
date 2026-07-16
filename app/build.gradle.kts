@@ -12,7 +12,7 @@ android {
         applicationId = "sh.atman.beam"
         minSdk = 24
         targetSdk = 35
-        versionCode = 4
+        versionCode = 3
         versionName = "0.1.0"
 
         // libatman.so is only built for these three (see build_atman.sh), but
