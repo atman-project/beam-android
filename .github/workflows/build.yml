@@ -52,3 +52,7 @@ jobs:
 
       - name: Build APK
         run: ./gradlew assembleDebug
+
+      # Google Play requires 16KB alignment
+      - name: Check 16 KB alignment
+        run: ./check_16kb.py app/build/outputs/apk/debug/app-debug.apk
